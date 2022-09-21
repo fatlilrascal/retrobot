@@ -147,6 +147,8 @@ export const emulate = async (pool: Piscina, coreType: CoreType, game: Uint8Arra
         })
     }
 
+    // This is where we would check against the last frame to see if currently in battle
+
     const tmpFrameDir = tmp.dirSync({ unsafeCleanup: true });
 
     const { width, height } = last(importantFrames);

@@ -13,10 +13,16 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, CacheType, Client, Compon
 import { InputState } from './util';
 import { CoreType, emulate } from './emulate';
 
+/**
+ * Toggle if to use the dev bot or the live one for testing
+ */
+const useDevBot = true;
+
 const NES = ['nes'];
 const SNES = ['sfc', 'smc'];
 const GB = ['gb', 'gbc'];
 const GBA = ['gba'];
+
 
 const ALL = [...NES, ...SNES, ...GB, ...GBA];
 
@@ -30,7 +36,8 @@ const main = async () => {
     const coreCache = new LruCache({ max: 150, ttl: 5 * 60 * 1000 });
     const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
-    await client.login(process.env.DISCORD_TOKEN);
+
+    await client.login(useDevBot ? process.env.DISCORD_TOKEN_DEV : process.env.DISCORD_TOKEN);
     console.log('online');
 
     const infoFiles = await glob('data/*/info.json');
@@ -132,7 +139,7 @@ const main = async () => {
             components: buttons(coreType, id, 1, true),
         });
     });
-
+    // This section in general is on the interaction interpreting.
     client.on('interactionCreate', async (interaction: Interaction<CacheType>) => {
         if (interaction.isButton()) {
             try {
@@ -147,6 +154,7 @@ const main = async () => {
                     (async () => {
                         try {
                             if (isNumeric(button)) {
+                                // Multipliers are checked and edited out here
                                 await message.edit({ components: buttons(info.coreType, id, parseInt(button), true) });
                             } else {
                                 await message.edit({ components: buttons(info.coreType, id, parseInt(multiplier), false, button) });
@@ -162,6 +170,9 @@ const main = async () => {
 
                     if (isNumeric(button)) {
                     } else {
+                        // This is where the inputs are parsed and added to the array.
+                        // So instead we could throw in something like "if button hotkey then playerInputs = Button name"
+                        // And tht button name will be the custom button prompts
                         playerInputs = range(0, parseInt(multiplier)).map(() => parseInput(button));
                     }
 
@@ -174,6 +185,7 @@ const main = async () => {
                         let game = fs.readFileSync(path.resolve('data', id, info.game))
                         let oldState = fs.readFileSync(path.resolve('data', id, 'state.sav'));
 
+                        // This is whewre the player inputs are sent to the emulator
                         const { recording, recordingName, state: newState } = await emulate(pool, info.coreType, game, oldState, playerInputs);
 
                         fs.writeFileSync(path.resolve('data', id, 'state.sav'), newState);
@@ -197,6 +209,7 @@ const main = async () => {
     });
 }
 
+// New buttons need ot be added here
 const parseInput = (input: string) => {
     switch (toLower(input)) {
         case 'a':
@@ -230,6 +243,8 @@ const isNumeric = (value) => {
     return /^\d+$/.test(value);
 };
 
+
+// New buttons need to be added here too
 const buttons = (coreType: CoreType, id: string, multiplier: number = 1, enabled: boolean = true, highlight?: string) => {
     const a = new ButtonBuilder()
         .setCustomId(id + '-' + 'a' + '-' + multiplier)
@@ -339,6 +354,8 @@ const buttons = (coreType: CoreType, id: string, multiplier: number = 1, enabled
             ] as any[];
 
         case CoreType.GBA:
+            // This is where to put the change in button maps if battle is dected
+            // Maybe refactor this one out as "base" and then add a new one.
             return [
                 new ActionRowBuilder()
                     .addComponents(
